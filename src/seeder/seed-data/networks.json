@@ -1,0 +1,12 @@
+{
+    "networks": [
+        {
+            "name": "Taiko",
+            "chainId": 1
+        },
+        {
+            "name": "Amoy",
+            "chainId": 2
+        }
+    ]
+}
