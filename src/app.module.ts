@@ -1,16 +1,15 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule } from '@nestjs/config';
-import config from './config/config.json';
+import config from '../config/config.json';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { typeOrmConfig } from 'db/data-source';
-import { DataSource } from 'typeorm';
 import { TransactionModule } from './transaction/transactions.module';
-import { TransactionService } from './transaction/transaction.service';
 import { TokenModule } from './token/token.module';
 import { NetworkModule } from './network/network.module';
 import { SeederModule } from './seeder/seeder.module';
+import { RedisClientModule } from './redis-client/redis-client.module';
+import { QueueModule } from './queue/queue.module';
+import { EthereumClientModule } from './ethereum-client/ethereum-client.module';
 
 @Module({
   imports: [
@@ -24,12 +23,9 @@ import { SeederModule } from './seeder/seeder.module';
     TokenModule,
     NetworkModule,
     SeederModule,
+    RedisClientModule,
+    QueueModule,
+    EthereumClientModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
-export class AppModule {
-  constructor(private dataSource: DataSource) {
-    console.log(dataSource.driver.database);
-  }
-}
+export class AppModule {}

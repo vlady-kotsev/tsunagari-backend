@@ -9,10 +9,19 @@ export class Transaction {
   user: string;
 
   @Column('varchar')
-  tokenAddress: string;
+  originTokenAddress: string;
+
+  @Column('varchar')
+  destinationTokenAddress: string;
 
   @Column('bigint')
   amount: number;
+
+  @Column('int')
+  originNetworkId: number;
+
+  @Column('int')
+  destinationNetworkId: number;
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   timestamp: Date;

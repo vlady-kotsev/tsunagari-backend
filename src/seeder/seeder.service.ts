@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Network } from 'src/network/network.entity';
 import { Token } from 'src/token/token.entity';
 import { Repository } from 'typeorm';
-import networkSeeds from './seed-data/networks.json';
-import tokenSeeds from './seed-data/tokens.json';
+
 
 @Injectable()
 export class SeederService {
@@ -13,11 +13,13 @@ export class SeederService {
     private networkRepository: Repository<Network>,
     @InjectRepository(Token)
     private tokenRepository: Repository<Token>,
+    private configService: ConfigService,
   ) {}
 
   parseNetworkSeeds(): Network[] {
     const networks: Network[] = [];
-    for (const networkObject of networkSeeds.networks) {
+    const networksConfig = this.configService.get('networks');
+    for (const networkObject of networksConfig) {
       const network = new Network();
       network.name = networkObject.name;
       network.chainId = networkObject.chainId;
@@ -28,12 +30,15 @@ export class SeederService {
 
   parseTokenSeeds(): Token[] {
     const tokens: Token[] = [];
-    for (const tokenObject of tokenSeeds.tokens) {
-      const token = new Token();
-      token.name = tokenObject.name;
-      token.symbol = tokenObject.symbol;
-      token.address = tokenObject.address;
-      tokens.push(token);
+    const tokensConfig = this.configService.get('tokens');
+    for (const [, tokenObject] of Object.entries(tokensConfig)) {
+      for (const [tokenAddress, tokenInfo] of Object.entries(tokenObject)) {
+        const token = new Token();
+        token.name = tokenInfo.name;
+        token.symbol = tokenInfo.symbol;
+        token.address = tokenAddress;
+        tokens.push(token);
+      }
     }
     return tokens;
   }
@@ -46,10 +51,10 @@ export class SeederService {
       const networks = await this.networkRepository.save(
         this.parseNetworkSeeds(),
       );
-      console.log(`Seeded ${networks.length} networks`);
+      Logger.log(`Seeded ${networks.length} networks`);
 
       const tokens = await this.tokenRepository.save(this.parseTokenSeeds());
-      console.log(`Seeded ${tokens.length} tokens`);
+      Logger.log(`Seeded ${tokens.length} tokens`);
     } catch (error) {
       console.error('Seeding failed:', error);
       throw error;

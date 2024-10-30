@@ -20,30 +20,30 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Get()
-  getAllTransactions(
+  async getAllTransactions(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number = 1,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number = 10,
   ): Promise<Pagination<Transaction>> {
     try {
-      return this.transactionService.paginate({ page, limit });
+      return await this.transactionService.paginate({ page, limit });
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Post()
-  addTransaction(@Body() createTransactionDto: CreateTransactionDto) {
+  async addTransaction(@Body() createTransactionDto: CreateTransactionDto) {
     try {
-      return this.transactionService.addTransaction(createTransactionDto);
+      return await this.transactionService.addTransaction(createTransactionDto);
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
   @Get(':id')
-  getTransactionById(@Param('id', ParseIntPipe) id: number) {
+  async getTransactionById(@Param('id', ParseIntPipe) id: number) {
     try {
-      return this.transactionService.getTransactionById(id);
+      return await this.transactionService.getTransactionById(id);
     } catch (error) {
       throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
