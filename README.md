@@ -35,85 +35,86 @@ Example config:
 
 ```json
 {
-    "app": {
-        "murmur3Seed": 123,
-        "grpcHost": "<grpc-host>",
-        "grpcPort": "<grpc-port>",
-        "protoPath": "../proto/transactions.proto"
+  "app": {
+    "murmur3Seed": 123,
+    "grpcHost": "<grpc-host>",
+    "grpcPort": "<grpc-port>",
+    "grpcPassword": "<grpc_password>",
+    "protoPath": "../proto/transactions.proto"
+  },
+  "websocket": {
+    "reconnectInterval": 5000,
+    "keepAliveCheckInterval": 10000,
+    "expectedPongBack": 30000
+  },
+  "queue": {
+    "name": "<queue-name>",
+    "host": "<redis-host>",
+    "port": "<redis-port>",
+    "jobRetryDelay": 1000,
+    "jobAddAttempts": 3
+  },
+  "redis": {
+    "host": "<redis-host>",
+    "port": "<redis-port>",
+    "password": "<redis-password>",
+    "retryDelay": 5000,
+    "maxRetries": 10,
+    "maxDelay": 30000
+  },
+  "wallet": {
+    "privateKey": "<wallet-private-key>"
+  },
+  "networks": [
+    {
+      "name": "amoy",
+      "bridgeAddress": "<bridge-address>",
+      "rpcUrl": "<rpc-url>",
+      "wsUrl": "<ws-url>",
+      "chainId": "<chain-id>"
     },
-    "websocket": {
-        "reconnectInterval": 5000,
-        "keepAliveCheckInterval": 10000,
-        "expectedPongBack": 30000
-    },
-    "queue": {
-        "name": "<queue-name>",
-        "host": "<redis-host>",
-        "port": "<redis-port>",
-        "jobRetryDelay": 1000,
-        "jobAddAttempts": 3
-    },
-    "redis": {
-        "host": "<redis-host>",
-        "port": "<redis-port>",
-        "password": "<redis-password>",
-        "retryDelay": 5000,
-        "maxRetries": 10,
-        "maxDelay": 30000
-    },
-    "wallet": {
-        "privateKey": "<wallet-private-key>"
-    },
-    "networks": [
-        {
-            "name": "amoy",
-            "bridgeAddress": "<bridge-address>",
-            "rpcUrl": "<rpc-url>",
-            "wsUrl": "<ws-url>",
-            "chainId": "<chain-id>"
-        },
-        {
-            "name": "taiko",
-            "bridgeAddress": "<bridge-address>",
-            "rpcUrl": "<rpc-url>",
-            "wsUrl": "<ws-url>",
-            "chainId": "<chain-id>"
-        }
-    ],
-    "tokens": {
-        "80002": {
-            "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB": {
-                "name": "AmoyNativeToken",
-                "symbol": "ANT",
-                "wrapped": {
-                    "167009": "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5"
-                }
-            },
-            "0x20d131eA180bA673F365b7e04666e90B2eF7eb32": {
-                "name": "WrappedTaikoNativeToken",
-                "symbol": "WTNT",
-                "native": {
-                    "167009": "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6"
-                }
-            }
-        },
-        "167009": {
-            "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6": {
-                "name": "TaikoNativeToken",
-                "symbol": "TNT",
-                "wrapped": {
-                    "80002": "0x20d131eA180bA673F365b7e04666e90B2eF7eb32"
-                }
-            },
-            "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5": {
-                "name": "WrappedAmoyNativeToken",
-                "symbol": "WANT",
-                "native": {
-                    "80002": "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB"
-                }
-            }
-        }
+    {
+      "name": "taiko",
+      "bridgeAddress": "<bridge-address>",
+      "rpcUrl": "<rpc-url>",
+      "wsUrl": "<ws-url>",
+      "chainId": "<chain-id>"
     }
+  ],
+  "tokens": {
+    "80002": {
+      "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB": {
+        "name": "AmoyNativeToken",
+        "symbol": "ANT",
+        "wrapped": {
+          "167009": "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5"
+        }
+      },
+      "0x20d131eA180bA673F365b7e04666e90B2eF7eb32": {
+        "name": "WrappedTaikoNativeToken",
+        "symbol": "WTNT",
+        "native": {
+          "167009": "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6"
+        }
+      }
+    },
+    "167009": {
+      "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6": {
+        "name": "TaikoNativeToken",
+        "symbol": "TNT",
+        "wrapped": {
+          "80002": "0x20d131eA180bA673F365b7e04666e90B2eF7eb32"
+        }
+      },
+      "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5": {
+        "name": "WrappedAmoyNativeToken",
+        "symbol": "WANT",
+        "native": {
+          "80002": "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB"
+        }
+      }
+    }
+  }
 }
 ```
 

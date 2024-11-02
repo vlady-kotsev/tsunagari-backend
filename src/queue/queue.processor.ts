@@ -9,6 +9,8 @@ import { ClientGrpcProxy } from '@nestjs/microservices';
 import { TransactionsService } from 'src/transactions/transactions.service';
 import { CreateTransactionDto } from 'src/transactions/dto/transaction.dto';
 import { firstValueFrom } from 'rxjs';
+import { Metadata } from '@grpc/grpc-js';
+import { ConfigService } from '@nestjs/config';
 
 /**
  * Processor for handling bridge-related queue jobs.
@@ -28,7 +30,9 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     private readonly redisClientService: RedisClientService,
     private readonly ethereumClientService: EthereumClientService,
-    @Inject('TRANSACTIONS_PACKAGE') private grpcClient: ClientGrpcProxy,
+    @Inject('TRANSACTIONS_PACKAGE')
+    private readonly grpcClient: ClientGrpcProxy,
+    private readonly configService: ConfigService,
   ) {
     super();
   }
@@ -109,8 +113,13 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
     transaction.destinationChainId = job.data.destinationChainId;
 
     try {
+      const metadata = new Metadata();
+      metadata.add(
+        'password',
+        this.configService.get<string>('app.grpcPassword'),
+      );
       await firstValueFrom(
-        this.transactionsService.StoreTransaction(transaction),
+        this.transactionsService.StoreTransaction(transaction, metadata),
       );
     } catch (error) {
       Logger.error(`Error storing transaction: ${error}`);
