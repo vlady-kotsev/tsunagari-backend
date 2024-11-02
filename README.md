@@ -49,7 +49,7 @@ Example config:
     "queue": {
         "name": "<queue-name>",
         "host": "<redis-host>",
-        "port": <redis-port>,
+        "port": "<redis-port>",
         "jobRetryDelay": 1000,
         "jobAddAttempts": 3
     },
