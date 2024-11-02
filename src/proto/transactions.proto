@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package transactions;
+
+service TransactionsService {
+  rpc StoreTransaction (CreateTransaction) returns (EmptyResponse) {}
+}
+
+   message CreateTransaction {
+     string user = 1;
+     string originTokenAddress = 2;
+     string destinationTokenAddress = 3;
+     string amount = 4;
+     int32 originChainId = 5;
+     int32 destinationChainId = 6;
+   }
+
+message EmptyResponse {}

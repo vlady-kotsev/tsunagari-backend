@@ -1,99 +1,148 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/8e4e3361-4930-45ef-addc-a0b576e8c56f" alt="logo" />
+  <h1>Tsunagari/つながり - backend</h1>
+  
+</div>
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+## Table of Contents
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+- [Overview](#overview)
+- [Features](#features)
+- [Startup](#startup)
+- [Configuration](#deployment)
+- [Testing](#testing)
+- [License](#license)
 
-## Description
+## Overview
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+**Tsunagari**(to connect) backend is a NestJS application for bridging tokens between **EVM** compatible chains.
 
-## Project setup
+## Features
 
-```bash
-$ npm install
+- The system is designed to be modular and upgradeable, allowing for future enhancements and improvements.
+- The system supports multiple backends(nodes), working together to provide a decentralized and secure bridge service.
+- The system uses an gRPC client to interact with the Tsunagari API: https://github.com/vlady-kotsev/tsunagari-api.
+
+## Startup
+
+Starting a local setup of Tsunagari: https://github.com/vlady-kotsev/tsunagari-local
+
+## Configuration
+
+Place `config.json` in `<root>/config/default/`
+
+Example config:
+
+```json
+{
+    "app": {
+        "murmur3Seed": 123,
+        "grpcHost": "<grpc-host>",
+        "grpcPort": "<grpc-port>",
+        "protoPath": "../proto/transactions.proto"
+    },
+    "websocket": {
+        "reconnectInterval": 5000,
+        "keepAliveCheckInterval": 10000,
+        "expectedPongBack": 30000
+    },
+    "queue": {
+        "name": "<queue-name>",
+        "host": "<redis-host>",
+        "port": <redis-port>,
+        "jobRetryDelay": 1000,
+        "jobAddAttempts": 3
+    },
+    "redis": {
+        "host": "<redis-host>",
+        "port": "<redis-port>",
+        "password": "<redis-password>",
+        "retryDelay": 5000,
+        "maxRetries": 10,
+        "maxDelay": 30000
+    },
+    "wallet": {
+        "privateKey": "<wallet-private-key>"
+    },
+    "networks": [
+        {
+            "name": "amoy",
+            "bridgeAddress": "<bridge-address>",
+            "rpcUrl": "<rpc-url>",
+            "wsUrl": "<ws-url>",
+            "chainId": "<chain-id>"
+        },
+        {
+            "name": "taiko",
+            "bridgeAddress": "<bridge-address>",
+            "rpcUrl": "<rpc-url>",
+            "wsUrl": "<ws-url>",
+            "chainId": "<chain-id>"
+        }
+    ],
+    "tokens": {
+        "80002": {
+            "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB": {
+                "name": "AmoyNativeToken",
+                "symbol": "ANT",
+                "wrapped": {
+                    "167009": "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5"
+                }
+            },
+            "0x20d131eA180bA673F365b7e04666e90B2eF7eb32": {
+                "name": "WrappedTaikoNativeToken",
+                "symbol": "WTNT",
+                "native": {
+                    "167009": "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6"
+                }
+            }
+        },
+        "167009": {
+            "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6": {
+                "name": "TaikoNativeToken",
+                "symbol": "TNT",
+                "wrapped": {
+                    "80002": "0x20d131eA180bA673F365b7e04666e90B2eF7eb32"
+                }
+            },
+            "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5": {
+                "name": "WrappedAmoyNativeToken",
+                "symbol": "WANT",
+                "native": {
+                    "80002": "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB"
+                }
+            }
+        }
+    }
+}
 ```
 
-## Compile and run the project
+## Testing
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
-
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
-```
-
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+To be added
 
 ## License
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+This project is licensed under the MIT License:
+
+MIT License
+
+Copyright (c) 2024
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

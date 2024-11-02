@@ -18,15 +18,27 @@ import JobTypes from 'src/queue/job/JobTypes';
 import { EventSignatures, SmartContractMethods } from './constants';
 import { messageToBytes, createMessage } from './utils';
 
+/**
+ * Interface representing Ethereum network providers
+ */
 interface IProvider {
+  /** JSON RPC provider for standard HTTP connections */
   provider: JsonRpcProvider;
+  /** WebSocket provider for real-time events */
   wsProvider: WebSocketProvider;
 }
 
+/**
+ * Service handling Ethereum blockchain interactions and bridge operations
+ * @remarks This service manages cross-chain token transfers, event listening, and transaction signing
+ */
 @Injectable()
 export class EthereumClientService {
+  /** Map of network chain IDs to their respective providers */
   private networksProviders: Map<number, IProvider>;
+  /** Map of network chain IDs to their bridge contract addresses */
   private bridgeAddresses: Map<number, string>;
+  /** Map of network chain IDs to their corresponding wallet instances */
   private wallets: Map<number, Wallet>;
 
   constructor(
@@ -69,17 +81,69 @@ export class EthereumClientService {
                          EVENT METHODS
   //////////////////////////////////////////////////////////////*/
 
+  /**
+   * Sets up event listeners for all configured networks
+   * @throws Error if setting up listeners fails for any network
+   */
   async setupAllEventListeners() {
     const networksConfig = this.configService.get('networks');
     for (const network of networksConfig) {
-      await this.setupEventListeners(network.chainId);
+      try {
+        await this.setupEventListeners(network.chainId);
+      } catch (error) {
+        Logger.error(
+          `Error setting up event listeners for chain ${network.chainId}: ${error}`,
+        );
+        throw error;
+      }
     }
   }
 
+  /**
+   * Sets up event listeners for a specific chain
+   * @param chainId - The ID of the blockchain network
+   * @throws Error if no WebSocket provider is found for the chain
+   */
   private async setupEventListeners(chainId: number) {
     const provider = this.networksProviders.get(chainId).wsProvider;
     if (!provider) {
       throw new Error(`No WS provider found for chain ID ${chainId}`);
+    }
+
+    let pingTimeout: NodeJS.Timeout | null = null;
+    let keepAliveInterval: NodeJS.Timeout | null = null;
+
+    const ws = (provider as any)._websocket;
+
+    if (ws) {
+      ws.on('open', () => {
+        keepAliveInterval = setInterval(() => {
+          Logger.debug('Checking if the connection is alive, sending a ping');
+
+          ws.ping();
+
+          pingTimeout = setTimeout(() => {
+            ws.terminate();
+            this.reconnectWebSocket(chainId);
+          }, this.configService.get('websocket.expectedPongBack'));
+        }, this.configService.get('websocket.keepAliveCheckInterval'));
+      });
+
+      ws.on('close', () => {
+        if (keepAliveInterval) {
+          clearInterval(keepAliveInterval);
+        }
+        if (pingTimeout) {
+          clearTimeout(pingTimeout);
+        }
+        this.reconnectWebSocket(chainId);
+      });
+
+      ws.on('pong', () => {
+        if (pingTimeout) {
+          clearTimeout(pingTimeout);
+        }
+      });
     }
 
     const bridgeAddress = this.bridgeAddresses.get(chainId);
@@ -126,6 +190,9 @@ export class EthereumClientService {
     Logger.log(`Listening for WrappedTokensBurned events on chain ${chainId}`);
   }
 
+  /**
+   * Removes all event listeners across all configured networks
+   */
   async removeAllEventListeners() {
     const networksConfig = this.configService.get('networks');
     for (const network of networksConfig) {
@@ -133,6 +200,11 @@ export class EthereumClientService {
     }
   }
 
+  /**
+   * Removes event listeners for a specific chain
+   * @param chainId - The ID of the blockchain network
+   * @throws Error if no WebSocket provider is found for the chain
+   */
   private async removeEventListeners(chainId: number) {
     const provider = this.networksProviders.get(chainId).wsProvider;
     if (!provider) {
@@ -145,6 +217,15 @@ export class EthereumClientService {
     Logger.log(`Removed all event listeners for chain ${chainId}`);
   }
 
+  /**
+   * Handles TokensLocked events from the bridge contract
+   * @param originChainId - The chain ID where tokens were locked
+   * @param recipient - The address of the recipient
+   * @param nativeTokenAddress - The address of the native token
+   * @param amount - The amount of tokens locked
+   * @param destinationChainId - The target chain ID for the transfer
+   * @param eventLog - The event log data
+   */
   private async handleTokensLockedEvent(
     originChainId: number,
     recipient: string,
@@ -192,6 +273,15 @@ export class EthereumClientService {
     }
   }
 
+  /**
+   * Handles WrappedTokensBurned events from the bridge contract
+   * @param originChainId - The chain ID where tokens were burned
+   * @param user - The address of the user burning tokens
+   * @param wrappedTokenAddress - The address of the wrapped token
+   * @param amount - The amount of tokens burned
+   * @param destinationChainId - The target chain ID for the transfer
+   * @param eventLog - The event log data
+   */
   private async handleWrappedTokensBurnedEvent(
     originChainId: number,
     user: string,
@@ -238,15 +328,57 @@ export class EthereumClientService {
     }
   }
 
+  /**
+   * Attempts to reconnect a WebSocket connection for a specific chain
+   * @param chainId - The ID of the blockchain network
+   */
+  private async reconnectWebSocket(chainId: number) {
+    try {
+      Logger.log(`Attempting to reconnect WebSocket for chain ${chainId}`);
+      const networksConfig = this.configService.get('networks');
+      const network = networksConfig.find((n) => n.chainId === chainId);
+
+      if (network) {
+        const newWsProvider = new WebSocketProvider(network.wsUrl);
+        if (newWsProvider.ready) {
+          this.networksProviders.set(chainId, {
+            ...this.networksProviders.get(chainId),
+            wsProvider: newWsProvider,
+          });
+
+          await this.setupEventListeners(chainId);
+          Logger.log(`Successfully reconnected WebSocket for chain ${chainId}`);
+        }
+      }
+    } catch (error) {
+      Logger.error(
+        `Failed to reconnect WebSocket for chain ${chainId}: ${error.message}`,
+      );
+
+      setTimeout(
+        () => this.reconnectWebSocket(chainId),
+        this.configService.get('websocket.reconnectInterval'),
+      );
+    }
+  }
+
   /*//////////////////////////////////////////////////////////////
                        TRANSACTION UTIL METHODS
   //////////////////////////////////////////////////////////////*/
 
+  /**
+   * Sends a transaction to a smart contract
+   * @param chainId - The target chain ID
+   * @param method - The contract method to call
+   * @param args - Arguments for the contract method
+   * @returns Transaction receipt or undefined
+   * @throws Error if wallet or bridge address is not found
+   */
   private async sendTransaction(
     chainId: number,
     method: string,
     ...args: any[]
-  ): Promise<TransactionReceipt> {
+  ): Promise<TransactionReceipt | undefined> {
     const wallet = this.wallets.get(chainId);
     if (!wallet) {
       throw new Error(`No wallet found for chain ID ${chainId}`);
@@ -260,9 +392,19 @@ export class EthereumClientService {
     const tx = await contract[method](...args);
 
     const receipt = await tx.wait();
+    if (!receipt.status) {
+      throw new Error(`Transaction to chain ${chainId} failed`);
+    }
     return receipt;
   }
 
+  /**
+   * Performs a static call to a smart contract
+   * @param chainId - The target chain ID
+   * @param method - The contract method to call
+   * @param args - Arguments for the contract method
+   * @throws Error if provider or bridge address is not found
+   */
   private async staticCall(chainId: number, method: string, ...args: any[]) {
     const provider = this.networksProviders.get(chainId);
     if (!provider) {
@@ -277,6 +419,13 @@ export class EthereumClientService {
     return contract.getFunction(method).staticCall(...args);
   }
 
+  /**
+   * Signs a message using the wallet for a specific chain
+   * @param message - The message to sign
+   * @param chainId - The chain ID whose wallet should sign
+   * @returns The signature
+   * @throws Error if no wallet is found for the chain
+   */
   private async signMessage(message: string, chainId: number): Promise<string> {
     const wallet = this.wallets.get(chainId);
     if (!wallet) {
@@ -290,6 +439,16 @@ export class EthereumClientService {
                          SMART CONTRACT METHODS
   //////////////////////////////////////////////////////////////*/
 
+  /**
+   * Mints wrapped tokens on the destination chain
+   * @param signedMessage - The signed message authorizing the mint
+   * @param signatures - Array of validator signatures
+   * @param to - Recipient address
+   * @param amount - Amount of tokens to mint
+   * @param destinationChainId - Target chain ID
+   * @param wrappedTokenAddress - Address of the wrapped token contract
+   * @returns Transaction receipt
+   */
   async mintWrappedTokens(
     signedMessage: string,
     signatures: string[],
@@ -311,6 +470,16 @@ export class EthereumClientService {
     );
   }
 
+  /**
+   * Unlocks native tokens on the original chain
+   * @param signedMessage - The signed message authorizing the unlock
+   * @param signatures - Array of validator signatures
+   * @param to - Recipient address
+   * @param amount - Amount of tokens to unlock
+   * @param destinationChainId - Target chain ID
+   * @param nativeTokenAddress - Address of the native token contract
+   * @returns Transaction receipt
+   */
   async unlockTokens(
     signedMessage: string,
     signatures: string[],
@@ -332,6 +501,11 @@ export class EthereumClientService {
     );
   }
 
+  /**
+   * Gets the required threshold of signatures for a specific chain
+   * @param chainId - The chain ID to query
+   * @returns The signature threshold number
+   */
   private async getThreshold(chainId: number) {
     return this.staticCall(chainId, 'getThreshold');
   }

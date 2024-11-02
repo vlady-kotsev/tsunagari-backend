@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { EthereumClientService } from './ethereum-client.service';
 import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { QueueModule } from 'src/queue/queue.module';
@@ -14,10 +14,18 @@ export class EthereumClientModule implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly ethereumClientService: EthereumClientService) {}
 
   async onModuleInit() {
-    await this.ethereumClientService.setupAllEventListeners();
+    try {
+      await this.ethereumClientService.setupAllEventListeners();
+    } catch (error) {
+      Logger.error(`Error setting up event listeners: ${error}`);
+    }
   }
 
   async onModuleDestroy() {
-    await this.ethereumClientService.removeAllEventListeners();
+    try {
+      await this.ethereumClientService.removeAllEventListeners();
+    } catch (error) {
+      Logger.error(`Error removing event listeners: ${error}`);
+    }
   }
 }
