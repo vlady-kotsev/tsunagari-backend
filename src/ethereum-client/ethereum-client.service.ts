@@ -110,9 +110,13 @@ export class EthereumClientService {
       throw new Error(`No WS provider found for chain ID ${chainId}`);
     }
 
-    provider.on('block', async (blockNumber) => {
-      Logger.log(`Pinging for block number: ${blockNumber}`);
-    });
+    // Pinging
+    setInterval(() => {
+      provider.getBlockNumber().then((blockNumber) => {
+        Logger.log(`Pinging for block number: ${blockNumber}`);
+      });
+    }, this.configService.get('websocket.keepAliveCheckInterval'));
+
     provider.on('error', (error) => {
       Logger.error(`WebSocket error: ${error}`);
       this.reconnectWebSocket(chainId);
