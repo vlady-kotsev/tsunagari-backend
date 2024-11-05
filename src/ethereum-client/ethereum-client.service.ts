@@ -117,8 +117,9 @@ export class EthereumClientService {
 
     if (ws) {
       ws.on('open', () => {
+        Logger.log('WebSocket connection opened');
         keepAliveInterval = setInterval(() => {
-          Logger.debug('Checking if the connection is alive, sending a ping');
+          Logger.log('Checking if the connection is alive, sending a ping');
 
           ws.ping();
 
