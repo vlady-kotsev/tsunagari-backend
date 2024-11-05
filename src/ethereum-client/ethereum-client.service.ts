@@ -125,13 +125,13 @@ export class EthereumClientService {
         }, this.configService.get('websocket.keepAliveCheckInterval'));
       });
 
-      ws.onerror(() => {
-        Logger.log('WebSocket connection closed');
-        if (keepAliveInterval) {
-          clearInterval(keepAliveInterval);
-        }
-        this.reconnectWebSocket(chainId);
-      });
+      // ws.onerror(() => {
+      //   Logger.log('WebSocket connection closed');
+      //   if (keepAliveInterval) {
+      //     clearInterval(keepAliveInterval);
+      //   }
+      //   this.reconnectWebSocket(chainId);
+      // });
     }
 
     const bridgeAddress = this.bridgeAddresses.get(chainId);
