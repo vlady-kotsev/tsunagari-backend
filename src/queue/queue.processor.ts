@@ -11,6 +11,7 @@ import { CreateTransactionDto } from 'src/transactions/dto/transaction.dto';
 import { firstValueFrom } from 'rxjs';
 import { Metadata } from '@grpc/grpc-js';
 import { ConfigService } from '@nestjs/config';
+import { TransactionReceipt } from 'ethers';
 
 /**
  * Processor for handling bridge-related queue jobs.
@@ -72,8 +73,9 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
         return;
       }
       await this.redisClientService.del(data.message);
+      let receipt: TransactionReceipt;
       if (data.type === JobTypes.HANDLE_LOCK) {
-        await this.ethereumClientService.mintWrappedTokens(
+        receipt = await this.ethereumClientService.mintWrappedTokens(
           data.message,
           signatures,
           data.recipient,
@@ -82,7 +84,7 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
           data.destinationTokenAddress,
         );
       } else if (data.type === JobTypes.HANDLE_BURN) {
-        await this.ethereumClientService.unlockTokens(
+        receipt = await this.ethereumClientService.unlockTokens(
           data.message,
           signatures,
           data.recipient,
@@ -90,6 +92,10 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
           data.destinationChainId,
           data.destinationTokenAddress,
         );
+      }
+      if (receipt.status === 0) {
+        Logger.error(`Transaction failed: ${receipt.hash}`);
+        return;
       }
       Logger.log(`Processing job: ${data.type}`);
     } catch (error) {
