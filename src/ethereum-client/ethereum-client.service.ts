@@ -118,6 +118,9 @@ export class EthereumClientService {
       ws.onopen(() => {
         Logger.log('WebSocket connection opened');
         keepAliveInterval = setInterval(async () => {
+          if (ws.readyState !== WebSocket.OPEN) {
+            return;
+          }
           Logger.log('Checking if the connection is alive, sending a ping');
 
           const blockNumber = await provider.getBlockNumber();
