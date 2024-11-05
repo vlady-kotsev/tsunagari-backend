@@ -110,42 +110,17 @@ export class EthereumClientService {
       throw new Error(`No WS provider found for chain ID ${chainId}`);
     }
 
-    let pingTimeout: NodeJS.Timeout | null = null;
-    let keepAliveInterval: NodeJS.Timeout | null = null;
-
-    const ws = (provider as any)._websocket;
-
-    if (ws) {
-      ws.on('open', () => {
-        Logger.log('WebSocket connection opened');
-        keepAliveInterval = setInterval(() => {
-          Logger.log('Checking if the connection is alive, sending a ping');
-
-          ws.ping();
-
-          pingTimeout = setTimeout(() => {
-            ws.terminate();
-            this.reconnectWebSocket(chainId);
-          }, this.configService.get('websocket.expectedPongBack'));
-        }, this.configService.get('websocket.keepAliveCheckInterval'));
+    // Pinging
+    setInterval(() => {
+      provider.getBlockNumber().then((blockNumber) => {
+        Logger.log(`Pinging for block number: ${blockNumber}`);
       });
+    }, this.configService.get('websocket.keepAliveCheckInterval'));
 
-      ws.on('close', () => {
-        if (keepAliveInterval) {
-          clearInterval(keepAliveInterval);
-        }
-        if (pingTimeout) {
-          clearTimeout(pingTimeout);
-        }
-        this.reconnectWebSocket(chainId);
-      });
-
-      ws.on('pong', () => {
-        if (pingTimeout) {
-          clearTimeout(pingTimeout);
-        }
-      });
-    }
+    provider.on('error', (error) => {
+      Logger.error(`WebSocket error: ${error}`);
+      this.reconnectWebSocket(chainId);
+    });
 
     const bridgeAddress = this.bridgeAddresses.get(chainId);
     const contract = new Contract(bridgeAddress, diamondAbi, provider);
