@@ -110,40 +110,27 @@ export class EthereumClientService {
       throw new Error(`No WS provider found for chain ID ${chainId}`);
     }
 
-    let pingTimeout: NodeJS.Timeout | null = null;
     let keepAliveInterval: NodeJS.Timeout | null = null;
 
-    const ws = (provider as any)._websocket;
+    const ws = provider.websocket;
 
     if (ws) {
-      ws.on('open', () => {
+      ws.onopen(() => {
         Logger.log('WebSocket connection opened');
         keepAliveInterval = setInterval(() => {
           Logger.log('Checking if the connection is alive, sending a ping');
 
-          ws.ping();
+          ws.send('ping'); // to keep the connection open
 
-          pingTimeout = setTimeout(() => {
-            ws.terminate();
-            this.reconnectWebSocket(chainId);
-          }, this.configService.get('websocket.expectedPongBack'));
         }, this.configService.get('websocket.keepAliveCheckInterval'));
       });
 
-      ws.on('close', () => {
+      ws.onerror(() => {
+        Logger.log('WebSocket connection closed');
         if (keepAliveInterval) {
           clearInterval(keepAliveInterval);
         }
-        if (pingTimeout) {
-          clearTimeout(pingTimeout);
-        }
         this.reconnectWebSocket(chainId);
-      });
-
-      ws.on('pong', () => {
-        if (pingTimeout) {
-          clearTimeout(pingTimeout);
-        }
       });
     }
 
