@@ -110,32 +110,13 @@ export class EthereumClientService {
       throw new Error(`No WS provider found for chain ID ${chainId}`);
     }
 
-    // let keepAliveInterval: NodeJS.Timeout | null = null;
-
-    // const ws = provider.websocket;
-    // while (ws.readyState !== WebSocket.OPEN) {
-    //   Logger.log('Waiting for WebSocket to open...');
-    //   await new Promise((resolve) => setTimeout(resolve, 1000));
-    // }
-    // if (ws) {
-    //   ws.onopen(() => {
-    //     Logger.log('WebSocket connection opened');
-    //     keepAliveInterval = setInterval(async () => {
-    //       Logger.log('Checking if the connection is alive, sending a ping');
-
-    //       const blockNumber = await provider.getBlockNumber();
-    //       Logger.log('Ping successful, current block number:', blockNumber); // to keep the connection open
-    //     }, this.configService.get('websocket.keepAliveCheckInterval'));
-    //   });
-
-    //   // ws.onerror(() => {
-    //   //   Logger.log('WebSocket connection closed');
-    //   //   if (keepAliveInterval) {
-    //   //     clearInterval(keepAliveInterval);
-    //   //   }
-    //   //   this.reconnectWebSocket(chainId);
-    //   // });
-    // }
+    provider.on('block', async (blockNumber) => {
+      Logger.log(`Pinging for block number: ${blockNumber}`);
+    });
+    provider.on('error', (error) => {
+      Logger.error(`WebSocket error: ${error}`);
+      this.reconnectWebSocket(chainId);
+    });
 
     const bridgeAddress = this.bridgeAddresses.get(chainId);
     const contract = new Contract(bridgeAddress, diamondAbi, provider);
