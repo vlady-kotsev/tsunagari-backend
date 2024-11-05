@@ -114,7 +114,7 @@ export class EthereumClientService {
 
     const ws = provider.websocket;
     while (ws.readyState !== WebSocket.OPEN) {
-      console.log('Waiting for WebSocket to open...');
+      Logger.log('Waiting for WebSocket to open...');
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     if (ws) {
@@ -124,7 +124,7 @@ export class EthereumClientService {
           Logger.log('Checking if the connection is alive, sending a ping');
 
           const blockNumber = await provider.getBlockNumber();
-          console.log('Ping successful, current block number:', blockNumber); // to keep the connection open
+          Logger.log('Ping successful, current block number:', blockNumber); // to keep the connection open
         }, this.configService.get('websocket.keepAliveCheckInterval'));
       });
 
