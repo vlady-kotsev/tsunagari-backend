@@ -120,7 +120,21 @@ Example config:
 
 ## Testing
 
-To be added
+Run unit test with coverage:
+
+```bash
+npm run test:cov
+```
+
+Run end-to-end tests:
+
+Prerequisites:
+- Anvil: https://book.getfoundry.sh/anvil/installation/
+- Docker: https://www.docker.com/
+
+```bash
+npm run test:e2e
+```
 
 ## License
 

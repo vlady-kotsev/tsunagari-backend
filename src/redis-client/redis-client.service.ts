@@ -21,7 +21,7 @@ export class RedisClientService {
       host: this.configService.get<string>('redis.host'),
       port: this.configService.get<number>('redis.port'),
       password: this.configService.get<string>('redis.password'),
-      retryStrategy: this.retryStrategy,
+      retryStrategy: (times: number) => this.retryStrategy(times),
       maxRetriesPerRequest: null,
     });
   }

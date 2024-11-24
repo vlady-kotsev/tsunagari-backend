@@ -32,10 +32,7 @@ import { join } from 'path';
           transport: Transport.GRPC,
           options: {
             package: 'transactions',
-            protoPath: join(
-              __dirname,
-              configService.get('app.protoPath'),
-            ),
+            protoPath: join(__dirname, configService.get('app.protoPath')),
             url: `${configService.get('app.grpcHost')}:${configService.get('app.grpcPort')}`,
           },
         }),

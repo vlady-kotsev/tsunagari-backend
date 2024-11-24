@@ -1,6 +1,5 @@
-import { Logger, Module } from '@nestjs/common';
 import { EthereumClientService } from './ethereum-client.service';
-import { OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { OnModuleDestroy, OnModuleInit, Logger, Module } from '@nestjs/common';
 import { QueueModule } from 'src/queue/queue.module';
 import { RedisClientModule } from 'src/redis-client/redis-client.module';
 import { ConfigService } from '@nestjs/config';
