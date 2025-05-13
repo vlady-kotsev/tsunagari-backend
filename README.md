@@ -35,86 +35,137 @@ Example config:
 
 ```json
 {
-  "app": {
-    "murmur3Seed": 123,
-    "grpcHost": "<grpc-host>",
-    "grpcPort": "<grpc-port>",
-    "grpcPassword": "<grpc_password>",
-    "protoPath": "../proto/transactions.proto"
-  },
-  "websocket": {
-    "reconnectInterval": 5000,
-    "keepAliveCheckInterval": 10000,
-    "expectedPongBack": 30000
-  },
-  "queue": {
-    "name": "<queue-name>",
-    "host": "<redis-host>",
-    "port": "<redis-port>",
-    "jobRetryDelay": 1000,
-    "jobAddAttempts": 3
-  },
-  "redis": {
-    "host": "<redis-host>",
-    "port": "<redis-port>",
-    "password": "<redis-password>",
-    "retryDelay": 5000,
-    "maxRetries": 10,
-    "maxDelay": 30000
-  },
-  "wallet": {
-    "privateKey": "<wallet-private-key>"
-  },
-  "networks": [
-    {
-      "name": "amoy",
-      "bridgeAddress": "<bridge-address>",
-      "rpcUrl": "<rpc-url>",
-      "wsUrl": "<ws-url>",
-      "chainId": "<chain-id>"
+    "app": {
+        "murmur3Seed": 123,
+        "grpcHost": "api",
+        "grpcPort": "5000",
+        "grpcPassword": "grpcpass",
+        "protoPath": "../proto/transactions.proto"
     },
-    {
-      "name": "taiko",
-      "bridgeAddress": "<bridge-address>",
-      "rpcUrl": "<rpc-url>",
-      "wsUrl": "<ws-url>",
-      "chainId": "<chain-id>"
-    }
-  ],
-  "tokens": {
-    "80002": {
-      "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB": {
-        "name": "AmoyNativeToken",
-        "symbol": "ANT",
-        "wrapped": {
-          "167009": "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5"
-        }
-      },
-      "0x20d131eA180bA673F365b7e04666e90B2eF7eb32": {
-        "name": "WrappedTaikoNativeToken",
-        "symbol": "WTNT",
-        "native": {
-          "167009": "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6"
-        }
-      }
+    "websocket": {
+        "reconnectInterval": 5000,
+        "keepAliveCheckInterval": 60000
     },
-    "167009": {
-      "0xDA79D9B7FAc84C3Bc49290Fd8Dfcae2eB2a0e1F6": {
-        "name": "TaikoNativeToken",
-        "symbol": "TNT",
-        "wrapped": {
-          "80002": "0x20d131eA180bA673F365b7e04666e90B2eF7eb32"
+    "queue": {
+        "name": "bridge-queue",
+        "host": "redis",
+        "port": 6379,
+        "jobRetryDelay": 1000,
+        "jobAddAttempts": 3
+    },
+    "redis": {
+        "host": "redis",
+        "port": 6379,
+        "password": "password",
+        "retryDelay": 5000,
+        "maxRetries": 10,
+        "maxDelay": 30000
+    },
+    "evm": {
+        "wallet": {
+            "privateKey": "<evm_private_key>"
+        },
+        "networks": [
+            {
+                "name": "taiko",
+                "bridgeAddress": "0xC1025CbAc0C44EE3d1990BFb0581367433cC4901",
+                "rpcUrl": "<evm_rpc>",
+                "wsUrl": "<evm_ws_rpc>",
+                "chainId": 167009
+            },
+            {
+                "name": "base",
+                "bridgeAddress": "0xC6D23FD19Ea36B9c75e9Aa5A09f33f39df78d344",
+                "rpcUrl": "<evm_rpc>",
+                "wsUrl": "<evm_ws_rpc>",
+                "chainId": 84532
+            }
+        ],
+        "tokens": {
+            "167009": {
+                "0xFE928174dD13f86199898b8Cb26a88311D27E9a1": {
+                    "name": "TaikoNativeToken",
+                    "symbol": "TNT",
+                    "wrapped": {
+                        "84532": "0x64aB6E6b1E2243B39D0d483ef58F86C775119159",
+                        "0": "EFqwiLvu7oeGi4y9L6N5wYscX5GHs1LfQFFbBEQ6CCxu"
+                    }
+                },
+                "0xc3001071c3f7E2084B2Bf79CD4f085d51F6226d8": {
+                    "name": "WrappedBaseNativeToken",
+                    "symbol": "WANT",
+                    "native": {
+                        "84532": "0x8A5C9D7AF6C168FC986bb94874fACDb8445199f7"
+                    }
+                },
+                "0x9C7da31D569c6Ad0B2F8f2EFA9D91B0fa1e77184": {
+                    "name": "WrappedSolanaNativeToken",
+                    "symbol": "WSNT",
+                    "native": {
+                        "0": "Eny4Cdvbxos72WVY2RP4oNxELbF361EXgdCk6mDRarSK"
+                    }
+                }
+            },
+            "84532": {
+                "0x8A5C9D7AF6C168FC986bb94874fACDb8445199f7": {
+                    "name": "BaseNativeToken",
+                    "symbol": "BNT",
+                    "wrapped": {
+                        "167009": "0xc3001071c3f7E2084B2Bf79CD4f085d51F6226d8",
+                        "0": "D2Zq2bo7aELGtWpAbw3ZHSrUosRAKept9iiQ1obkCzZB"
+                    }
+                },
+                "0x64aB6E6b1E2243B39D0d483ef58F86C775119159": {
+                    "name": "WrappedTaikoNativeToken",
+                    "symbol": "WTNT",
+                    "native": {
+                        "167009": "0xFE928174dD13f86199898b8Cb26a88311D27E9a1"
+                    }
+                },
+                "0x475F383441E5998c7EdFa9c6E4B54784904a3ae3": {
+                    "name": "WrappedSolanaNativeToken",
+                    "symbol": "WSNT",
+                    "native": {
+                        "0": "Eny4Cdvbxos72WVY2RP4oNxELbF361EXgdCk6mDRarSK"
+                    }
+                }
+            }
         }
-      },
-      "0xb892F6638bE64e70B053a9f988624BAf12bBE5D5": {
-        "name": "WrappedAmoyNativeToken",
-        "symbol": "WANT",
-        "native": {
-          "80002": "0x43C3176222275dd9cb55CF167Ac322ec170a5BcB"
+    },
+    "solana": {
+        "wallet": {
+            "privateKey": "<solana_secret_key>"
+        },
+        "network": {
+            "bridgeAddress": "NfuWnZr8HR4mxULPG61Nh7zSbdinwGtNQGVoeuxM5Jf",
+            "rpcUrl": "<solana_rpc>",
+            "wsUrl": "<solana_ws_rpc>"
+        },
+        "tokens": {
+            "Eny4Cdvbxos72WVY2RP4oNxELbF361EXgdCk6mDRarSK": {
+                "name": "SolanaNativeToken",
+                "symbol": "SNT",
+                "wrapped": {
+                    "84532": "0x475F383441E5998c7EdFa9c6E4B54784904a3ae3",
+                    "167009": "0x9C7da31D569c6Ad0B2F8f2EFA9D91B0fa1e77184"
+                }
+            },
+            "D2Zq2bo7aELGtWpAbw3ZHSrUosRAKept9iiQ1obkCzZB": {
+                "name": "WrappedBaseNativeToken",
+                "symbol": "WBNT",
+                "native": {
+                    "84532": "0x8A5C9D7AF6C168FC986bb94874fACDb8445199f7"
+                }
+            },
+            "EFqwiLvu7oeGi4y9L6N5wYscX5GHs1LfQFFbBEQ6CCxu": {
+                "name": "WrappedTaikoNativeToken",
+                "symbol": "WTNT",
+                "native": {
+                    "167009": "0xFE928174dD13f86199898b8Cb26a88311D27E9a1"
+                }
+            }
         }
-      }
     }
-  }
 }
 ```
 
