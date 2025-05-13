@@ -304,6 +304,92 @@ export type BridgeSolana = {
       ]
     },
     {
+      "name": "createWrapped",
+      "discriminator": [
+        204,
+        246,
+        106,
+        93,
+        27,
+        121,
+        10,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bridgeConfig",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  66,
+                  114,
+                  105,
+                  100,
+                  103,
+                  101,
+                  67,
+                  111,
+                  110,
+                  102
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "splVault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  118
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "createWrappedParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "discriminator": [
         175,
@@ -1134,6 +1220,11 @@ export type BridgeSolana = {
       "code": 6016,
       "name": "signatureAlreadyUsed",
       "msg": "Signature already used"
+    },
+    {
+      "code": 6017,
+      "name": "invalidDecimals",
+      "msg": "Invalid decimals"
     }
   ],
   "types": [
@@ -1218,6 +1309,32 @@ export type BridgeSolana = {
           {
             "name": "destinationChain",
             "type": "u64"
+          },
+          {
+            "name": "destinationAddress",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "createWrappedParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "message",
+            "type": "bytes"
+          },
+          {
+            "name": "signatures",
+            "type": {
+              "vec": "bytes"
+            }
           }
         ]
       }
@@ -1440,6 +1557,10 @@ export type BridgeSolana = {
           {
             "name": "destinationChain",
             "type": "u64"
+          },
+          {
+            "name": "destinationAddress",
+            "type": "string"
           }
         ]
       }
@@ -1497,6 +1618,11 @@ export type BridgeSolana = {
   ],
   "constants": [
     {
+      "name": "maxDecimals",
+      "type": "u8",
+      "value": "9"
+    },
+    {
       "name": "maxMembers",
       "type": "u8",
       "value": "10"
@@ -1505,6 +1631,11 @@ export type BridgeSolana = {
       "name": "maxTokenSymbolLength",
       "type": "u8",
       "value": "10"
+    },
+    {
+      "name": "minDecimals",
+      "type": "u8",
+      "value": "0"
     },
     {
       "name": "splVaultSeed",

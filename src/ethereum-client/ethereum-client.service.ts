@@ -233,12 +233,25 @@ export class EthereumClientService {
     const murmur3Seed = this.configService.get('app.murmur3Seed');
     const message = createMessage(transactionHash, murmur3Seed);
 
-    const signature = await this.signMessage(message, destinationChainId);
+    let signature: string;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      const pk = this.configService.get('evm.wallet.privateKey');
+      signature = await this.solanaClientService.signMessageEVM(message, pk);
+    } else {
+      signature = await this.signMessage(message, destinationChainId);
+    }
+
     this.redisClientService.rpush(message, signature);
 
     Logger.log(`Signed message: ${message}`);
 
-    const signaturesThreshold = await this.getThreshold(destinationChainId);
+    let signaturesThreshold: number;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      signaturesThreshold = await this.solanaClientService.getThreshold();
+    } else {
+      signaturesThreshold = await this.getThreshold(destinationChainId);
+    }
+
     const signaturesCount = await this.redisClientService.llen(message);
 
     if (signaturesCount >= signaturesThreshold) {
@@ -302,7 +315,6 @@ export class EthereumClientService {
     this.redisClientService.rpush(message, signature);
 
     let signaturesThreshold: number;
-
     if (destinationChainId === SOLANA_CHAIN_ID) {
       signaturesThreshold = await this.solanaClientService.getThreshold();
     } else {

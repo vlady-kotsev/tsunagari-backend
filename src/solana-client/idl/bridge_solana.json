@@ -298,6 +298,92 @@
       ]
     },
     {
+      "name": "create_wrapped",
+      "discriminator": [
+        204,
+        246,
+        106,
+        93,
+        27,
+        121,
+        10,
+        3
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "bridge_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  66,
+                  114,
+                  105,
+                  100,
+                  103,
+                  101,
+                  67,
+                  111,
+                  110,
+                  102
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "spl_vault",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  112,
+                  108,
+                  118
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "params",
+          "type": {
+            "defined": {
+              "name": "CreateWrappedParams"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "initialize",
       "discriminator": [
         175,
@@ -1128,6 +1214,11 @@
       "code": 6016,
       "name": "SignatureAlreadyUsed",
       "msg": "Signature already used"
+    },
+    {
+      "code": 6017,
+      "name": "InvalidDecimals",
+      "msg": "Invalid decimals"
     }
   ],
   "types": [
@@ -1212,6 +1303,32 @@
           {
             "name": "destination_chain",
             "type": "u64"
+          },
+          {
+            "name": "destination_address",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "CreateWrappedParams",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "decimals",
+            "type": "u8"
+          },
+          {
+            "name": "message",
+            "type": "bytes"
+          },
+          {
+            "name": "signatures",
+            "type": {
+              "vec": "bytes"
+            }
           }
         ]
       }
@@ -1434,6 +1551,10 @@
           {
             "name": "destination_chain",
             "type": "u64"
+          },
+          {
+            "name": "destination_address",
+            "type": "string"
           }
         ]
       }
@@ -1491,6 +1612,11 @@
   ],
   "constants": [
     {
+      "name": "MAX_DECIMALS",
+      "type": "u8",
+      "value": "9"
+    },
+    {
       "name": "MAX_MEMBERS",
       "type": "u8",
       "value": "10"
@@ -1499,6 +1625,11 @@
       "name": "MAX_TOKEN_SYMBOL_LENGTH",
       "type": "u8",
       "value": "10"
+    },
+    {
+      "name": "MIN_DECIMALS",
+      "type": "u8",
+      "value": "0"
     },
     {
       "name": "SPL_VAULT_SEED",

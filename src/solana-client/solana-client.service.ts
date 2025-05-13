@@ -11,27 +11,17 @@ import {
   web3,
 } from '@coral-xyz/anchor';
 import IDL from './idl/bridge_solana.json';
-import { BridgeSolana } from './types/bridge_solana.js';
+import { BridgeSolana } from './types/bridge_solana';
 import { createMessage } from 'src/ethereum-client/utils';
 import pdaDeriver from './pda-deriver.js';
 import { murmur3 } from 'murmurhash-js';
 import { BridgeJob } from 'src/queue/job/BridgeJob';
 import JobTypes from 'src/queue/job/JobTypes';
 import { ethers, Wallet } from 'ethers';
-import { ITokensLocked } from './interfaces.js';
-import { ETH_DECIMALS } from './constants';
+import { ISolanaBurnedEvent, ISolanaLockEvent } from './interfaces.js';
+import { BURN_EVENT_NAME, ETH_DECIMALS, LOCK_EVENT_NAME } from './constants';
 import { secp256k1 } from '@noble/curves/secp256k1';
-import { randomBytes } from 'crypto';
-
-/**
- * Interface representing Ethereum network providers
- */
-// interface IProvider {
-//   /** JSON RPC provider for standard HTTP connections */
-//   provider: JsonRpcProvider;
-//   /** WebSocket provider for real-time events */
-//   wsProvider: WebSocketProvider;
-// }
+import { SOLANA_CHAIN_ID } from 'src/queue/consts';
 
 @Injectable()
 export class SolanaClientService implements OnModuleInit {
@@ -107,13 +97,20 @@ export class SolanaClientService implements OnModuleInit {
 
     this.wsConnection.onLogs(
       programId,
-      (logs) => {
+      async (logs) => {
         const events = this.eventParser.parseLogs(logs.logs);
         for (const event of events) {
-          this.handleTokensLockedEvent(
-            event.data as ITokensLocked,
-            logs.signature,
-          );
+          if (event.name === BURN_EVENT_NAME) {
+            await this.handleTokensBurnedEvent(
+              event.data as ISolanaBurnedEvent,
+              logs.signature,
+            );
+          } else if (event.name === LOCK_EVENT_NAME) {
+            await this.handleTokensLockedEvent(
+              event.data as ISolanaLockEvent,
+              logs.signature,
+            );
+          }
         }
       },
       'finalized',
@@ -121,7 +118,7 @@ export class SolanaClientService implements OnModuleInit {
   }
 
   private async handleTokensLockedEvent(
-    eventLog: ITokensLocked,
+    eventLog: ISolanaLockEvent,
     txSignature: string,
   ) {
     const { getMint } = await import('@solana/spl-token');
@@ -158,6 +155,7 @@ export class SolanaClientService implements OnModuleInit {
 
     const adjustedAmount =
       Number(amount) * Math.pow(10, ETH_DECIMALS - decimals);
+
     if (signaturesCount >= signaturesThreshold) {
       const murmur3Seed = this.configService.get('app.murmur3Seed');
       const jobId: string = `jobID: ${murmur3(message, murmur3Seed).toString()}`;
@@ -169,7 +167,61 @@ export class SolanaClientService implements OnModuleInit {
         wrappedTokenAddress,
         adjustedAmount.toString(),
         destinationChain,
-        0,
+        SOLANA_CHAIN_ID,
+      );
+      await this.queueService.addToQueue(job, jobId);
+    }
+  }
+
+  private async handleTokensBurnedEvent(
+    eventLog: ISolanaBurnedEvent,
+    txSignature: string,
+  ) {
+    const { getMint } = await import('@solana/spl-token');
+    const {
+      amount,
+      burnedTokenMint: tokenMint,
+      destinationChain,
+      destinationAddress,
+    } = eventLog;
+
+    Logger.log(
+      `TokensBurned event:, ${destinationAddress}, ${tokenMint.toBase58()}, ${amount}, ${destinationChain}`,
+    );
+    const tokensConfig = this.configService.get('solana.tokens');
+
+    const nativeTokenAddress =
+      tokensConfig[tokenMint.toBase58()].native[destinationChain.toString()];
+
+    const murmur3Seed = this.configService.get('app.murmur3Seed');
+    const message = createMessage(txSignature, murmur3Seed);
+
+    const signature = await this.signMessage(message);
+    this.redisClientService.rpush(message, signature);
+
+    Logger.log(`Signed message: ${message}`);
+
+    const signaturesThreshold = await this.getThreshold();
+    const signaturesCount = await this.redisClientService.llen(message);
+
+    // handle decimals
+    const decimals = (await getMint(this.connection, tokenMint)).decimals;
+
+    const adjustedAmount =
+      Number(amount) * Math.pow(10, ETH_DECIMALS - decimals);
+
+    if (signaturesCount >= signaturesThreshold) {
+      const murmur3Seed = this.configService.get('app.murmur3Seed');
+      const jobId: string = `jobID: ${murmur3(message, murmur3Seed).toString()}`;
+      const job = new BridgeJob(
+        message,
+        JobTypes.HANDLE_BURN,
+        destinationAddress,
+        tokenMint.toBase58(),
+        nativeTokenAddress,
+        adjustedAmount.toString(),
+        Number(destinationChain),
+        SOLANA_CHAIN_ID,
       );
       await this.queueService.addToQueue(job, jobId);
     }
@@ -182,8 +234,12 @@ export class SolanaClientService implements OnModuleInit {
     amount: bigint,
     nativeTokenMint: web3.PublicKey,
   ): Promise<{ status: boolean; txSignature: string }> {
-    const { getAssociatedTokenAddress, TOKEN_PROGRAM_ID, getMint } =
-      await import('@solana/spl-token');
+    const {
+      getAssociatedTokenAddress,
+      TOKEN_PROGRAM_ID,
+      getMint,
+      getOrCreateAssociatedTokenAccount,
+    } = await import('@solana/spl-token');
 
     const messageBytes = Buffer.from(
       signedMessage.startsWith('0x') ? signedMessage.slice(2) : signedMessage,
@@ -196,7 +252,9 @@ export class SolanaClientService implements OnModuleInit {
 
     const receiver = await this.hexToBase58(receiverString);
 
-    const userAta = await getAssociatedTokenAddress(
+    const userAta = await getOrCreateAssociatedTokenAccount(
+      this.connection,
+      this.authority,
       nativeTokenMint,
       new web3.PublicKey(receiver),
     );
@@ -240,13 +298,92 @@ export class SolanaClientService implements OnModuleInit {
         splVault: vaultPDA,
         bridgeConfig: bridgeConfigPDA,
         from: vaultAtaPDA,
-        to: userAta,
+        to: userAta.address,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: web3.SystemProgram.programId,
       })
       .remainingAccounts(remainingAccounts)
       .signers([this.authority])
       .rpc({ commitment: 'finalized', skipPreflight: false });
+
+    const status = await this.checkTransactionStatus(txSignature);
+    return { status, txSignature };
+  }
+
+  async mintWrappedTokens(
+    signedMessage: string,
+    signatures: Buffer<ArrayBuffer>[],
+    receiverString: string,
+    amount: bigint,
+    wrappedTokenMint: web3.PublicKey,
+  ) {
+    const {
+      getAssociatedTokenAddress,
+      TOKEN_PROGRAM_ID,
+      getMint,
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      getOrCreateAssociatedTokenAccount
+    } = await import('@solana/spl-token');
+
+    const messageBytes = Buffer.from(
+      signedMessage.startsWith('0x') ? signedMessage.slice(2) : signedMessage,
+      'hex',
+    );
+
+    const programId = this.bridgeProgram.programId;
+    const bridgeConfigPDA = pdaDeriver.bridgeConfig(programId);
+    const vaultPDA = pdaDeriver.splVault(programId);
+
+    const receiver = await this.hexToBase58(receiverString);
+    const receiverPubkey = new web3.PublicKey(receiver);
+
+    const receiverATA = await getOrCreateAssociatedTokenAccount(
+      this.connection,
+      this.authority,
+      wrappedTokenMint,
+      receiverPubkey,
+    );
+
+    const mintInfo = await getMint(this.connection, wrappedTokenMint);
+
+    const amountBN: BN = new BN(amount.toString());
+    const scaleFactor: BN = new BN(10).pow(
+      new BN(ETH_DECIMALS - mintInfo.decimals),
+    );
+    const scaledAmount: BN = amountBN.div(scaleFactor);
+
+    const remainingAccounts = signatures.map((signature) => {
+      const usedSignaturePDA = pdaDeriver.usedSignature(signature, programId);
+      return {
+        pubkey: usedSignaturePDA,
+        isSigner: false,
+        isWritable: true,
+      };
+    });
+
+    const txSignature = await this.bridgeProgram.methods
+      .mintWrapped({
+        amount: scaledAmount, // 1 token with 3 decimals
+        to: receiverPubkey,
+        wrappedTokenAddress: wrappedTokenMint,
+        message: messageBytes,
+        signatures: signatures,
+      })
+      .accounts({
+        payer: this.authority.publicKey,
+        receiver: receiverPubkey,
+        mint: wrappedTokenMint,
+        //@ts-ignore
+        receiverAta: receiverATA.address,
+        splVault: vaultPDA,
+        bridgeConfig: bridgeConfigPDA,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        associcatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        systemProgram: web3.SystemProgram.programId,
+      })
+      .remainingAccounts(remainingAccounts)
+      .signers([this.authority])
+      .rpc({ commitment: 'finalized' });
 
     const status = await this.checkTransactionStatus(txSignature);
     return { status, txSignature };

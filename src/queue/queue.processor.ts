@@ -95,17 +95,24 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
   ) => {
     let success: boolean;
     let tx: string;
-
+    const signatureBytes = signatures.map((sig) => {
+      const cleanSig = sig.startsWith('0x') ? sig.slice(2) : sig;
+      return Buffer.from(cleanSig, 'hex');
+    });
     if (data.type === JobTypes.HANDLE_LOCK) {
-      // handle lock
+      const wrappedTokenMint = new web3.PublicKey(data.destinationTokenAddress);
+      const { status, txSignature } =
+        await this.solanaClientService.mintWrappedTokens(
+          data.message,
+          signatureBytes,
+          data.recipient,
+          BigInt(data.amount),
+          wrappedTokenMint,
+        );
+      success = status;
+      tx = txSignature;
     } else if (data.type === JobTypes.HANDLE_BURN) {
       const nativeTokenMint = new web3.PublicKey(data.destinationTokenAddress);
-      const signatureBytes = signatures.map((sig) => {
-
-        const cleanSig = sig.startsWith('0x') ? sig.slice(2) : sig;
-        return Buffer.from(cleanSig, 'hex');
-      });
-
       const { status, txSignature } =
         await this.solanaClientService.unlockTokens(
           data.message,
