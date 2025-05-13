@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   Contract,
+  ethers,
   EventLog,
   JsonRpcProvider,
   TransactionReceipt,
@@ -17,6 +18,8 @@ import { BridgeJob } from 'src/queue/job/BridgeJob';
 import JobTypes from 'src/queue/job/JobTypes';
 import { EventSignatures, SmartContractMethods } from './constants';
 import { messageToBytes, createMessage } from './utils';
+import { SOLANA_CHAIN_ID } from 'src/queue/consts';
+import { SolanaClientService } from 'src/solana-client/solana-client.service';
 
 /**
  * Interface representing Ethereum network providers
@@ -45,12 +48,13 @@ export class EthereumClientService {
     private readonly configService: ConfigService,
     private readonly redisClientService: RedisClientService,
     private readonly queueService: QueueService,
+    private readonly solanaClientService: SolanaClientService,
   ) {
     this.networksProviders = new Map<number, IProvider>();
     this.bridgeAddresses = new Map<number, string>();
     this.wallets = new Map<number, Wallet>();
 
-    const networksConfig = this.configService.get('networks');
+    const networksConfig = this.configService.get('evm.networks');
     for (const network of networksConfig) {
       if (!this.networksProviders.has(network.chainId)) {
         this.networksProviders.set(network.chainId, {
@@ -64,7 +68,7 @@ export class EthereumClientService {
       }
 
       if (!this.wallets.has(network.chainId)) {
-        const walletConfig = this.configService.get('wallet');
+        const walletConfig = this.configService.get('evm.wallet');
         this.wallets.set(
           network.chainId,
           new Wallet(
@@ -86,7 +90,7 @@ export class EthereumClientService {
    * @throws Error if setting up listeners fails for any network
    */
   async setupAllEventListeners() {
-    const networksConfig = this.configService.get('networks');
+    const networksConfig = this.configService.get('evm.networks');
     for (const network of networksConfig) {
       try {
         await this.setupEventListeners(network.chainId);
@@ -128,18 +132,20 @@ export class EthereumClientService {
     contract.on(
       EventSignatures.LOCK_EVENT_SIGNATURE,
       (
-        recipient: string,
+        user: string,
         tokenAddress: string,
         amount: bigint,
         destinationChainId: number,
+        destinationAddress: string,
         eventLog: EventLog,
       ) =>
         this.handleTokensLockedEvent(
           Number(chainId),
-          recipient,
+          user,
           tokenAddress,
           amount,
           Number(destinationChainId),
+          destinationAddress,
           eventLog,
         ),
     );
@@ -152,6 +158,7 @@ export class EthereumClientService {
         tokenAddress: string,
         amount: bigint,
         destinationChainId: number,
+        destinationAddress: string,
         eventLog: EventLog,
       ) =>
         this.handleWrappedTokensBurnedEvent(
@@ -160,6 +167,7 @@ export class EthereumClientService {
           tokenAddress,
           amount,
           Number(destinationChainId),
+          destinationAddress,
           eventLog,
         ),
     );
@@ -170,7 +178,7 @@ export class EthereumClientService {
    * Removes all event listeners across all configured networks
    */
   async removeAllEventListeners() {
-    const networksConfig = this.configService.get('networks');
+    const networksConfig = this.configService.get('evm.networks');
     for (const network of networksConfig) {
       await this.removeEventListeners(network.chainId);
     }
@@ -208,12 +216,13 @@ export class EthereumClientService {
     nativeTokenAddress: string,
     amount: bigint,
     destinationChainId: number,
+    destinationAddress: string,
     eventLog: EventLog,
   ) {
     Logger.log(
-      `TokensLocked event:, ${recipient}, ${nativeTokenAddress}, ${amount}, ${destinationChainId}`,
+      `TokensLocked event:, ${destinationAddress}, ${nativeTokenAddress}, ${amount}, ${destinationChainId}`,
     );
-    const tokensConfig = this.configService.get('tokens');
+    const tokensConfig = this.configService.get('evm.tokens');
     const wrappedTokenAddress =
       tokensConfig[originChainId][nativeTokenAddress].wrapped[
         destinationChainId
@@ -224,12 +233,25 @@ export class EthereumClientService {
     const murmur3Seed = this.configService.get('app.murmur3Seed');
     const message = createMessage(transactionHash, murmur3Seed);
 
-    const signature = await this.signMessage(message, destinationChainId);
+    let signature: string;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      const pk = this.configService.get('evm.wallet.privateKey');
+      signature = await this.solanaClientService.signMessageEVM(message, pk);
+    } else {
+      signature = await this.signMessage(message, destinationChainId);
+    }
+
     this.redisClientService.rpush(message, signature);
 
     Logger.log(`Signed message: ${message}`);
 
-    const signaturesThreshold = await this.getThreshold(destinationChainId);
+    let signaturesThreshold: number;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      signaturesThreshold = await this.solanaClientService.getThreshold();
+    } else {
+      signaturesThreshold = await this.getThreshold(destinationChainId);
+    }
+
     const signaturesCount = await this.redisClientService.llen(message);
 
     if (signaturesCount >= signaturesThreshold) {
@@ -238,7 +260,7 @@ export class EthereumClientService {
       const job = new BridgeJob(
         message,
         JobTypes.HANDLE_LOCK,
-        recipient,
+        destinationAddress,
         nativeTokenAddress,
         wrappedTokenAddress,
         amount.toString(),
@@ -264,12 +286,14 @@ export class EthereumClientService {
     wrappedTokenAddress: string,
     amount: bigint,
     destinationChainId: number,
+    destinationAddress: string,
     eventLog: EventLog,
   ) {
     Logger.log(
-      `WrappedTokensBurned event:, ${user}, ${wrappedTokenAddress}, ${amount}, ${destinationChainId}`,
+      `WrappedTokensBurned event:, ${user}, ${wrappedTokenAddress}, ${amount}, ${destinationChainId}, ${destinationAddress}`,
     );
-    const tokensConfig = this.configService.get('tokens');
+
+    const tokensConfig = this.configService.get('evm.tokens');
     const nativeTokenAddress =
       tokensConfig[originChainId][wrappedTokenAddress].native[
         destinationChainId
@@ -280,10 +304,23 @@ export class EthereumClientService {
     const murmur3Seed = this.configService.get('app.murmur3Seed');
     const message = createMessage(transactionHash, murmur3Seed);
 
-    const signature = await this.signMessage(message, destinationChainId);
+    let signature: string;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      const pk = this.configService.get('evm.wallet.privateKey');
+      signature = await this.solanaClientService.signMessageEVM(message, pk);
+    } else {
+      signature = await this.signMessage(message, destinationChainId);
+    }
+
     this.redisClientService.rpush(message, signature);
 
-    const signaturesThreshold = await this.getThreshold(destinationChainId);
+    let signaturesThreshold: number;
+    if (destinationChainId === SOLANA_CHAIN_ID) {
+      signaturesThreshold = await this.solanaClientService.getThreshold();
+    } else {
+      signaturesThreshold = await this.getThreshold(destinationChainId);
+    }
+
     const signaturesCount = await this.redisClientService.llen(message);
 
     if (signaturesCount >= signaturesThreshold) {
@@ -293,7 +330,7 @@ export class EthereumClientService {
       const job = new BridgeJob(
         message,
         JobTypes.HANDLE_BURN,
-        user,
+        destinationAddress,
         wrappedTokenAddress,
         nativeTokenAddress,
         amount.toString(),
@@ -311,7 +348,7 @@ export class EthereumClientService {
   private async reconnectWebSocket(chainId: number) {
     try {
       Logger.log(`Attempting to reconnect WebSocket for chain ${chainId}`);
-      const networksConfig = this.configService.get('networks');
+      const networksConfig = this.configService.get('evm.networks');
       const network = networksConfig.find((n) => n.chainId === chainId);
 
       if (network) {

@@ -3,10 +3,11 @@ import { OnModuleDestroy, OnModuleInit, Logger, Module } from '@nestjs/common';
 import { QueueModule } from 'src/queue/queue.module';
 import { RedisClientModule } from 'src/redis-client/redis-client.module';
 import { ConfigService } from '@nestjs/config';
+import { SolanaClientService } from 'src/solana-client/solana-client.service';
 
 @Module({
   imports: [QueueModule, RedisClientModule],
-  providers: [EthereumClientService, ConfigService],
+  providers: [EthereumClientService, ConfigService, SolanaClientService],
   exports: [EthereumClientService],
 })
 export class EthereumClientModule implements OnModuleInit, OnModuleDestroy {
