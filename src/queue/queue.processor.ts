@@ -12,6 +12,9 @@ import { firstValueFrom } from 'rxjs';
 import { Metadata } from '@grpc/grpc-js';
 import { ConfigService } from '@nestjs/config';
 import { TransactionReceipt } from 'ethers';
+import { SOLANA_CHAIN_ID } from './consts';
+import { SolanaClientService } from 'src/solana-client/solana-client.service';
+import { web3 } from '@coral-xyz/anchor';
 
 /**
  * Processor for handling bridge-related queue jobs.
@@ -31,6 +34,7 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
   constructor(
     private readonly redisClientService: RedisClientService,
     private readonly ethereumClientService: EthereumClientService,
+    private readonly solanaClientService: SolanaClientService,
     @Inject('TRANSACTIONS_PACKAGE')
     private readonly grpcClient: ClientGrpcProxy,
     private readonly configService: ConfigService,
@@ -73,35 +77,85 @@ export class QueueProcessor extends WorkerHost implements OnModuleInit {
         return;
       }
       await this.redisClientService.del(data.message);
-      let receipt: TransactionReceipt;
-      if (data.type === JobTypes.HANDLE_LOCK) {
-        receipt = await this.ethereumClientService.mintWrappedTokens(
-          data.message,
-          signatures,
-          data.recipient,
-          BigInt(data.amount),
-          data.destinationChainId,
-          data.destinationTokenAddress,
-        );
-      } else if (data.type === JobTypes.HANDLE_BURN) {
-        receipt = await this.ethereumClientService.unlockTokens(
-          data.message,
-          signatures,
-          data.recipient,
-          BigInt(data.amount),
-          data.destinationChainId,
-          data.destinationTokenAddress,
-        );
-      }
-      if (receipt.status === 0) {
-        Logger.error(`Transaction failed: ${receipt.hash}`);
-        return;
+
+      if (data.destinationChainId === SOLANA_CHAIN_ID) {
+        await this.processJobWithSolanaDestination(data, signatures);
+      } else {
+        await this.processJobWithEvmDestination(data, signatures);
       }
       Logger.log(`Processing job: ${data.type}`);
     } catch (error) {
       Logger.error(`Error processing job: ${error}`);
     }
   }
+
+  private processJobWithSolanaDestination = async (
+    data: BridgeJob,
+    signatures: string[],
+  ) => {
+    let success: boolean;
+    let tx: string;
+
+    if (data.type === JobTypes.HANDLE_LOCK) {
+      // handle lock
+    } else if (data.type === JobTypes.HANDLE_BURN) {
+      const nativeTokenMint = new web3.PublicKey(data.destinationTokenAddress);
+      const signatureBytes = signatures.map((sig) => {
+
+        const cleanSig = sig.startsWith('0x') ? sig.slice(2) : sig;
+        return Buffer.from(cleanSig, 'hex');
+      });
+
+      const { status, txSignature } =
+        await this.solanaClientService.unlockTokens(
+          data.message,
+          signatureBytes,
+          data.recipient,
+          BigInt(data.amount),
+          nativeTokenMint,
+        );
+      success = status;
+      tx = txSignature;
+    }
+
+    if (!success) {
+      Logger.error(`Transaction failed: ${tx}`);
+    }
+  };
+
+  private processJobWithEvmDestination = async (
+    data: BridgeJob,
+    signatures: string[],
+  ) => {
+    // get only the last 20 bytes
+    let recipient = `0x${data.recipient.slice(-40)}`;
+
+    let receipt: TransactionReceipt;
+    if (data.type === JobTypes.HANDLE_LOCK) {
+      receipt = await this.ethereumClientService.mintWrappedTokens(
+        data.message,
+        signatures,
+        recipient,
+        BigInt(data.amount),
+        data.destinationChainId,
+        data.destinationTokenAddress,
+      );
+    } else if (data.type === JobTypes.HANDLE_BURN) {
+      receipt = await this.ethereumClientService.unlockTokens(
+        data.message,
+        signatures,
+        recipient,
+        BigInt(data.amount),
+        data.destinationChainId,
+        data.destinationTokenAddress,
+      );
+    }
+
+    if (receipt.status === 0) {
+      Logger.error(`Transaction failed: ${receipt.hash}`);
+      return;
+    }
+  };
 
   /**
    * Handles job completion by storing transaction details, calling the backend-api via gRPC.

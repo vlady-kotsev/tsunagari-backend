@@ -3,9 +3,9 @@
  */
 export enum EventSignatures {
   /** Event emitted when tokens are locked in the bridge contract */
-  LOCK_EVENT_SIGNATURE = 'TokensLocked(address,address,uint256,uint256)',
+  LOCK_EVENT_SIGNATURE = 'TokensLocked(address,address,uint256,uint256,bytes32)',
   /** Event emitted when wrapped tokens are burned */
-  BURN_EVENT_SIGNATURE = 'WrappedTokensBurned(address,address,uint256,uint256)',
+  BURN_EVENT_SIGNATURE = 'WrappedTokensBurned(address,address,uint256,uint256,bytes32)',
 }
 
 /**

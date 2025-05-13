@@ -7,6 +7,7 @@ import { RedisClientService } from 'src/redis-client/redis-client.service';
 import { EthereumClientService } from 'src/ethereum-client/ethereum-client.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
+import { SolanaClientService } from 'src/solana-client/solana-client.service';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { join } from 'path';
     ConfigService,
     RedisClientService,
     EthereumClientService,
+    SolanaClientService,
   ],
   exports: [QueueService],
 })

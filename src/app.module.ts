@@ -4,6 +4,7 @@ import { RedisClientModule } from './redis-client/redis-client.module';
 import { QueueModule } from './queue/queue.module';
 import { EthereumClientModule } from './ethereum-client/ethereum-client.module';
 import { join } from 'path';
+import { SolanaClientModule } from './solana-client/solana-client.module';
 
 const loadConfig = () => {
   const instanceName = process.env.INSTANCE_NAME || 'default';
@@ -21,6 +22,7 @@ const loadConfig = () => {
     RedisClientModule,
     QueueModule,
     EthereumClientModule,
+    SolanaClientModule,
   ],
 })
 export class AppModule {}
